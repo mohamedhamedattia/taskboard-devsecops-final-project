@@ -1,0 +1,75 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: taskboard-db
+    environment:
+      POSTGRES_DB: taskboard
+      POSTGRES_USER: taskboard
+      POSTGRES_PASSWORD: taskboardpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskboard -d taskboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taskboard-net
+
+  backend:
+    build:
+      context: ../app/backend
+      dockerfile: Dockerfile
+    container_name: taskboard-backend
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: taskboard
+      DB_USER: taskboard
+      DB_PASSWORD: taskboardpassword
+      APP_VERSION: v1.0.0
+      ENVIRONMENT: local
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - taskboard-net
+
+  frontend:
+    build:
+      context: ../app/frontend
+      dockerfile: Dockerfile
+    container_name: taskboard-frontend
+    environment:
+      - BACKEND_URL=http://backend:8000
+    ports:
+      - "3000:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - taskboard-net
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: taskboard-sonarqube
+    ports:
+      - "9000:9000"
+    profiles:
+      - sonar
+    networks:
+      - taskboard-net
+
+volumes:
+  postgres_data:
+
+networks:
+  taskboard-net:
+    driver: bridge

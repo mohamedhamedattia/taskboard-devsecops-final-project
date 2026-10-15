@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskboard-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskboard-db
+  template:
+    metadata:
+      labels:
+        app: taskboard-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "taskboard"
+            - name: POSTGRES_USER
+              value: "taskboard"
+            - name: POSTGRES_PASSWORD
+              value: "taskboardpassword"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: taskboard-db
